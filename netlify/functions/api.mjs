@@ -84,11 +84,35 @@ async function sendOTP(email,code,req){
   console.info(`[StayHub LOCAL DEV OTP] ${email} | Code: ${code} | Expires in 10 minutes`);
   return;
  }
+ // Use Gmail SMTP for low-volume academic demos without a custom domain.
+ // Choose explicitly: STAYHUB_EMAIL_PROVIDER=gmail. Resend remains as a fallback
+ // when STAYHUB_EMAIL_PROVIDER is unset or set to resend.
+ const provider=String(process.env.STAYHUB_EMAIL_PROVIDER||'resend').trim().toLowerCase();
+ const subject='StayHub verification code';
+ const text=`Your StayHub security code is ${code}. It expires in 10 minutes. If you did not request it, ignore this email.`;
+ if(provider==='gmail'){
+  const user=String(process.env.GMAIL_SMTP_USER||'').trim();
+  const pass=String(process.env.GMAIL_APP_PASSWORD||'').replace(/\s/g,'');
+  must(validEmail(user)&&pass.length===16,503,'Gmail OTP is not configured. Set GMAIL_SMTP_USER and a 16-character GMAIL_APP_PASSWORD in Public Netlify environment variables.');
+  let transporter;
+  try{
+   const {default:nodemailer}=await import('nodemailer');
+   transporter=nodemailer.createTransport({host:'smtp.gmail.com',port:465,secure:true,auth:{user,pass},connectionTimeout:8000,greetingTimeout:8000,socketTimeout:12000});
+   const delivery=await transporter.sendMail({from:{name:'StayHub Verification',address:user},to:email,subject,text});
+   if(!delivery.accepted?.some(a=>a.toLowerCase()===email.toLowerCase()))throw new Error('SMTP recipient not accepted');
+  }catch(error){
+   // Never log OTP codes, App Passwords, email bodies or SMTP credentials.
+   console.error('[StayHub] Gmail SMTP error:',String(error?.code||'SEND_FAILED').slice(0,40));
+   throw new HttpError(503,'Unable to deliver your security code by Gmail. Check the backend mail configuration or try again shortly.');
+  }finally{transporter?.close();}
+  return;
+ }
+ must(provider==='resend',503,'Unsupported email provider. Use gmail or resend.');
  const key=process.env.RESEND_API_KEY,from=process.env.STAYHUB_FROM_EMAIL;
- must(key&&from,503,'Email verification is not configured. Set RESEND_API_KEY and STAYHUB_FROM_EMAIL in the Backend environment.');
+ must(key&&from,503,'Resend is not configured. Set RESEND_API_KEY and STAYHUB_FROM_EMAIL in the Backend environment.');
  let result;
  try {
-  result=await fetch('https://api.resend.com/emails',{method:'POST',headers:{Authorization:`Bearer ${key}`,'Content-Type':'application/json'},signal:AbortSignal.timeout(12000),body:JSON.stringify({from,to:[email],subject:'StayHub verification code',text:`Your StayHub security code is ${code}. It expires in 10 minutes. If you did not request it, ignore this email.`})});
+  result=await fetch('https://api.resend.com/emails',{method:'POST',headers:{Authorization:`Bearer ${key}`,'Content-Type':'application/json'},signal:AbortSignal.timeout(12000),body:JSON.stringify({from,to:[email],subject,text})});
  }catch{throw new HttpError(503,'Email provider is temporarily unreachable. Please try again.');}
  if(!result.ok)throw new HttpError(503,'Unable to deliver your security code. Try again shortly.');
 }
