@@ -1,0 +1,24 @@
+# StayHub V15.4: standalone Public + API website. (Do not publish backend source.)
+[build]
+  publish = "site"
+  functions = "netlify/functions"
+[build.environment]
+  NODE_VERSION = "22"
+
+# Force local Netlify Dev to serve the HTML in site/, not the repository root.
+[dev]
+  framework = "#static"
+  publish = "site"
+  functions = "netlify/functions"
+  port = 8888
+
+# Explicit location avoids `No migrations directory found` on some CLI versions.
+[db.migrations]
+  path = "netlify/database/migrations"
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    X-Frame-Options = "DENY"

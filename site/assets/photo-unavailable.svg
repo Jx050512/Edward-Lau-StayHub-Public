@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 480" role="img" aria-labelledby="title desc">
+<title id="title">Photo unavailable</title><desc id="desc">Neutral image placeholder for a photo that could not be loaded.</desc>
+<rect width="720" height="480" fill="#f4f1eb"/>
+<rect x="132" y="98" width="456" height="285" rx="16" fill="#e1e6e3" stroke="#c7cfcb" stroke-width="3"/>
+<path d="M172 332 282 216l92 91 62-65 111 90" fill="none" stroke="#879b96" stroke-width="12" stroke-linejoin="round"/>
+<circle cx="471" cy="172" r="27" fill="#ba9364"/>
+<text x="360" y="429" font-size="22" font-family="Arial,sans-serif" text-anchor="middle" fill="#516a66">Photo temporarily unavailable</text>
+</svg>
