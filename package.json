@@ -1,6 +1,6 @@
 {
   "name": "edward-lau-stayhub-public",
-  "version": "16.0.1",
+  "version": "16.1.0",
   "type": "module",
   "private": true,
   "engines": {
@@ -8,7 +8,7 @@
   },
   "scripts": {
     "test": "node --test tests/*.test.mjs",
-    "check": "node --check netlify/functions/api.mjs && node --check netlify/functions/core.mjs && node --check netlify/functions/admin-password.mjs && node --check scripts/reset-admin-password.mjs",
+    "check": "node --check netlify/functions/api.mjs && node --check netlify/functions/xlsx-lite.mjs && node --check netlify/functions/report-export.mjs && node --check netlify/functions/core.mjs && node --check netlify/functions/admin-password.mjs && node --check scripts/reset-admin-password.mjs",
     "preflight": "node scripts/preflight.mjs"
   },
   "dependencies": {

@@ -4,6 +4,7 @@
  */
 import pg from 'pg';
 import {changeAdminPassword} from './admin-password.mjs';
+import {exportReport} from './report-export.mjs';
 import { getConnectionString } from '@netlify/database';
 import { getStore } from '@netlify/blobs';
 import { randomInt, randomBytes } from 'node:crypto';
@@ -305,6 +306,10 @@ async function handler(req){
    await query(db,'COMMIT');return {ok:true,status:'cancelled',payment_status:payment?.status==='paid'?'refunded':'unpaid'};
   }catch(error){await query(db,'ROLLBACK');throw error;}
  }
+ if(method==='GET'&&path==='/api/admin/reports/export'){
+  await requiredUser(db,req,'admin');
+  return await exportReport(db,{format:get('format'),datasetName:get('dataset')});
+ }
  if(method==='GET'&&path==='/api/admin/properties'){await requiredUser(db,req,'admin');return {properties:await hydrateProperties(db,await query(db,'SELECT * FROM properties ORDER BY id DESC'))};}
  m=path.match(/^\/api\/admin\/properties\/(\d+)\/rooms$/);
  if(method==='GET'&&m){await requiredUser(db,req,'admin');return {rooms:(await query(db,'SELECT * FROM room_types WHERE property_id=$1 ORDER BY id',[m[1]])).map(roomJSON)};}
@@ -435,7 +440,7 @@ export default async function api(req){
   const path=new URL(req.url).pathname;
   const media=path.match(/^\/api\/media\/([a-f0-9]{32}\.(?:jpg|png|webp))$/);
   if(media&&req.method==='GET'){const blob=await getStore('stayhub-photos').get(media[1],{type:'arrayBuffer'});if(!blob)throw new HttpError(404,'Photo not found.');const type=media[1].endsWith('png')?'image/png':media[1].endsWith('webp')?'image/webp':'image/jpeg';return new Response(blob,{headers:{'Content-Type':type,'Cache-Control':'public,max-age=86400','X-Content-Type-Options':'nosniff'}});}
-  const result=await handler(req);const status=result?.__status||200;if(result&&'__status'in result)delete result.__status;return response(result,status,origin);
+  const result=await handler(req);if(result instanceof Response)return result;const status=result?.__status||200;if(result&&'__status'in result)delete result.__status;return response(result,status,origin);
  }catch(e){if(!(e instanceof HttpError))console.error('StayHub API failed:',e?.message);return response({error:e instanceof HttpError?e.message:'Server error. Please try again.'},e instanceof HttpError?e.status:500,origin);}
 }
 export const config={path:'/api/*'};
