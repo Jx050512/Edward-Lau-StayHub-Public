@@ -14,8 +14,13 @@ function dbMock(){
  return {async query(sql){
   if(sql.includes('format_type('))return {rows:columns};
   if(sql.includes('pg_get_constraintdef('))return {rows:[
-   {table_name:'properties',constraint_name:'properties_pkey',definition:'PRIMARY KEY (id)'},
-   {table_name:'room_types',constraint_name:'room_types_property_id_fkey',definition:'FOREIGN KEY (property_id) REFERENCES properties(id)'}
+   // Deliberately return child FK constraints before parent PK / UNIQUE constraints.
+   {table_name:'booking_items',constraint_name:'booking_items_booking_id_fkey',constraint_type:'f',definition:'FOREIGN KEY (booking_id) REFERENCES bookings(id)'},
+   {table_name:'room_types',constraint_name:'room_types_property_id_fkey',constraint_type:'f',definition:'FOREIGN KEY (property_id) REFERENCES properties(id)'},
+   {table_name:'bookings',constraint_name:'bookings_pkey',constraint_type:'p',definition:'PRIMARY KEY (id)'},
+   {table_name:'properties',constraint_name:'properties_pkey',constraint_type:'p',definition:'PRIMARY KEY (id)'},
+   {table_name:'room_types',constraint_name:'room_types_name_key',constraint_type:'u',definition:'UNIQUE (id)'},
+   {table_name:'room_types',constraint_name:'room_types_id_check',constraint_type:'c',definition:'CHECK (id > 0)'}
   ]};
   if(sql.includes('pg_get_indexdef('))return {rows:[]};
   if(sql.includes('FROM public."properties"'))return {rows:[{v0:'1',v1:"'Sample Hotel'"}]};
@@ -40,6 +45,20 @@ test('creates a SQL schema with constraints and safe seed tables only',async()=>
   assert.ok(!sql.includes('INSERT INTO public."'+table+'"'));
  assert.match(sql,/COMMIT;/);
  assert.match(sql,/setval/);
+});
+test('all parent PK and UNIQUE constraints precede cross-table foreign keys',async()=>{
+ const sql=await createSQL(dbMock());
+ const at=fragment=>{
+  const offset=sql.indexOf(fragment);
+  assert.notEqual(offset,-1,'Missing expected constraint: '+fragment);
+  return offset;
+ };
+ const fkBooking=at('ADD CONSTRAINT "booking_items_booking_id_fkey"');
+ const fkProperty=at('ADD CONSTRAINT "room_types_property_id_fkey"');
+ assert.ok(at('ADD CONSTRAINT "bookings_pkey"')<fkBooking);
+ assert.ok(at('ADD CONSTRAINT "properties_pkey"')<fkProperty);
+ assert.ok(at('ADD CONSTRAINT "room_types_name_key"')<fkBooking);
+ assert.ok(at('ADD CONSTRAINT "room_types_id_check"')<fkBooking);
 });
 test('export has SQL attachment header and never contains private example data',async()=>{
  const res=await exportSQL(dbMock());
