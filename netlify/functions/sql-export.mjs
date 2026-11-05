@@ -52,6 +52,7 @@ export async function createSQL(db){
 
  const constraints=(await db.query([
   'SELECT cl.relname AS table_name,con.conname AS constraint_name,',
+  'con.contype AS constraint_type,',
   'pg_get_constraintdef(con.oid,true) AS definition',
   'FROM pg_constraint con JOIN pg_class cl ON cl.oid=con.conrelid',
   'JOIN pg_namespace ns ON ns.oid=cl.relnamespace',
@@ -92,8 +93,15 @@ export async function createSQL(db){
   for(const row of rows)lines.push(insertSQL(table,cols,cols.map((_,i)=>row['v'+i])));
   lines.push('');
  }
- // Constraint creation after inserts avoids cross-table dependency ordering.
- for(const c of constraints)lines.push('ALTER TABLE '+id(c.table_name)+
+ // Create all PRIMARY KEY / UNIQUE constraints across every table first. A foreign
+ // key cannot reference a table until its referenced unique constraint exists.
+ // CHECK and other constraints follow; FOREIGN KEY constraints must come last.
+ const constraintPhase=type=>type==='p'||type==='u'?0:type==='f'?2:1;
+ const orderedConstraints=[...constraints].sort((a,b)=>
+  constraintPhase(a.constraint_type)-constraintPhase(b.constraint_type)||
+  a.table_name.localeCompare(b.table_name)||
+  a.constraint_name.localeCompare(b.constraint_name));
+ for(const c of orderedConstraints)lines.push('ALTER TABLE '+id(c.table_name)+
   ' ADD CONSTRAINT '+id(c.constraint_name)+' '+c.definition+';');
  lines.push('');
  for(const index of indexes)lines.push(index.definition+';');
