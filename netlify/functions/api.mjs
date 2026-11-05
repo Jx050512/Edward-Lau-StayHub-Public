@@ -5,6 +5,7 @@
 import pg from 'pg';
 import {changeAdminPassword} from './admin-password.mjs';
 import {exportReport} from './report-export.mjs';
+import {exportSQL} from './sql-export.mjs';
 import { getConnectionString } from '@netlify/database';
 import { getStore } from '@netlify/blobs';
 import { randomInt, randomBytes } from 'node:crypto';
@@ -309,6 +310,10 @@ async function handler(req){
  if(method==='GET'&&path==='/api/admin/reports/export'){
   await requiredUser(db,req,'admin');
   return await exportReport(db,{format:get('format'),datasetName:get('dataset')});
+ }
+ if(method==='GET'&&path==='/api/admin/reports/sql'){
+  await requiredUser(db,req,'admin');
+  return await exportSQL(db);
  }
  if(method==='GET'&&path==='/api/admin/properties'){await requiredUser(db,req,'admin');return {properties:await hydrateProperties(db,await query(db,'SELECT * FROM properties ORDER BY id DESC'))};}
  m=path.match(/^\/api\/admin\/properties\/(\d+)\/rooms$/);
